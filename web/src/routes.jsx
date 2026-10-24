@@ -11,6 +11,7 @@ import CompanySettings from "./pages/admin/CompanySettings.jsx";
 import OrgSetup from "./pages/admin/OrgSetup.jsx";
 import Employees from "./pages/hr/Employees.jsx";
 import EmployeeForm from "./pages/hr/EmployeeForm.jsx";
+import Corrections from "./pages/hr/Corrections.jsx";
 
 export default function AppRoutes() {
   return (
@@ -37,6 +38,7 @@ export default function AppRoutes() {
           <Route path="/hr/employees" element={<Employees />} />
           <Route path="/hr/employees/new" element={<EmployeeForm />} />
           <Route path="/hr/employees/:id/edit" element={<EmployeeForm />} />
+          <Route path="/hr/corrections" element={<Corrections />} />
         </Route>
       </Route>
 
