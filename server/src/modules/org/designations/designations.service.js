@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Designation } from "./designations.model.js";
 import { badRequest, notFound } from "../../../utils/httpError.js";
 import * as audit from "../../audit/audit.service.js";

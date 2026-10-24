@@ -8,6 +8,7 @@ import ChangePassword from "./pages/shared/ChangePassword.jsx";
 import Dashboard from "./pages/shared/Dashboard.jsx";
 import NotFound from "./pages/shared/NotFound.jsx";
 import CompanySettings from "./pages/admin/CompanySettings.jsx";
+import OrgSetup from "./pages/admin/OrgSetup.jsx";
 
 export default function AppRoutes() {
   return (
@@ -25,7 +26,7 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute roles={["admin"]} />}>
         <Route element={<AppLayout />}>
           <Route path="/admin/settings" element={<CompanySettings />} />
-          <Route path="/admin/org" element={<ComingSoon title="Org Setup" />} />
+          <Route path="/admin/org" element={<OrgSetup />} />
         </Route>
       </Route>
 
