@@ -1,7 +1,8 @@
 import { Router } from "express";
+import setupRoutes from "./modules/setup/setup.routes.js";
 
 const router = Router();
 
-// module routers get mounted here, one per step
+router.use("/setup", setupRoutes);
 
 export default router;
