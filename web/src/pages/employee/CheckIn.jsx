@@ -58,6 +58,11 @@ export default function CheckIn() {
 
   const rec = today.record;
   const done = rec?.checkIn && rec?.checkOut;
+  const notice = !today.working
+    ? `Not a working day: ${today.reason}`
+    : today.onLeave && !rec
+      ? "You are on approved leave today."
+      : null;
 
   return (
     <div className="mx-auto max-w-md space-y-4">
@@ -69,10 +74,8 @@ export default function CheckIn() {
           Office starts {today.officeStart} · grace {today.graceMinutes} min
         </div>
 
-        {!today.working ? (
-          <p className="mt-4 rounded bg-gray-50 p-3 text-gray-700">
-            Not a working day: {today.reason}
-          </p>
+        {notice ? (
+          <p className="mt-4 rounded bg-gray-50 p-3 text-gray-700">{notice}</p>
         ) : (
           <>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">

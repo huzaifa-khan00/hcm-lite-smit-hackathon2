@@ -13,9 +13,12 @@ import Employees from "./pages/hr/Employees.jsx";
 import EmployeeForm from "./pages/hr/EmployeeForm.jsx";
 import Corrections from "./pages/hr/Corrections.jsx";
 import AttendanceBoard from "./pages/hr/AttendanceBoard.jsx";
+import LeaveInbox from "./pages/hr/LeaveInbox.jsx";
 import CheckIn from "./pages/employee/CheckIn.jsx";
 import MyAttendance from "./pages/employee/MyAttendance.jsx";
 import MyCorrections from "./pages/employee/MyCorrections.jsx";
+import MyLeave from "./pages/employee/MyLeave.jsx";
+import ApplyLeave from "./pages/employee/ApplyLeave.jsx";
 
 export default function AppRoutes() {
   return (
@@ -30,6 +33,8 @@ export default function AppRoutes() {
           <Route path="/check-in" element={<CheckIn />} />
           <Route path="/my/attendance" element={<MyAttendance />} />
           <Route path="/my/corrections" element={<MyCorrections />} />
+          <Route path="/my/leave" element={<MyLeave />} />
+          <Route path="/my/leave/apply" element={<ApplyLeave />} />
         </Route>
       </Route>
 
@@ -47,6 +52,7 @@ export default function AppRoutes() {
           <Route path="/hr/employees/:id/edit" element={<EmployeeForm />} />
           <Route path="/hr/attendance" element={<AttendanceBoard />} />
           <Route path="/hr/corrections" element={<Corrections />} />
+          <Route path="/hr/leave" element={<LeaveInbox />} />
         </Route>
       </Route>
 

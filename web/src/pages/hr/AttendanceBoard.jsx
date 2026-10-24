@@ -10,7 +10,14 @@ import {
   STATUS_BADGE,
 } from "../../utils/format.js";
 
-const SUMMARY = ["present", "late", "half_day", "absent", "not_checked_in"];
+const SUMMARY = [
+  "present",
+  "late",
+  "half_day",
+  "on_leave",
+  "absent",
+  "not_checked_in",
+];
 
 export default function AttendanceBoard() {
   const [date, setDate] = useState(todayStr());
@@ -53,6 +60,7 @@ export default function AttendanceBoard() {
           className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[r.status] || ""}`}
         >
           {STATUS_LABEL[r.status] || r.status}
+          {r.leaveType ? ` · ${r.leaveType}` : ""}
         </span>
       ),
     },
@@ -89,7 +97,7 @@ export default function AttendanceBoard() {
               Not a working day: {data.reason}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
             {SUMMARY.map((k) => (
               <div key={k} className="rounded border border-gray-200 bg-white p-4">
                 <div className="text-xs text-gray-500">{STATUS_LABEL[k]}</div>

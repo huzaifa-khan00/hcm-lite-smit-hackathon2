@@ -12,7 +12,7 @@ import {
   STATUS_BADGE,
 } from "../../utils/format.js";
 
-const SUMMARY = ["present", "late", "half_day", "absent"];
+const SUMMARY = ["present", "late", "half_day", "on_leave", "absent"];
 const FIXABLE = ["absent", "late", "half_day"];
 
 export default function MyAttendance() {
@@ -89,7 +89,7 @@ export default function MyAttendance() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
             {SUMMARY.map((k) => (
               <div key={k} className="rounded border border-gray-200 bg-white p-4">
                 <div className="text-xs text-gray-500">{STATUS_LABEL[k]}</div>

@@ -3,6 +3,7 @@ import { verifyLocation } from "./attendance.geo.js";
 import { Settings } from "../org/settings/settings.model.js";
 import { Holiday } from "../org/holidays/holidays.model.js";
 import { Employee } from "../employees/employees.model.js";
+import { LeaveRequest } from "../leave/leaveRequest.model.js";
 import { badRequest, forbidden, notFound } from "../../utils/httpError.js";
 import {
   localParts,
@@ -39,6 +40,13 @@ async function dayInfo(date, settings) {
   return reason ? { working: false, reason } : { working: true };
 }
 
+const onApprovedLeave = (employeeId, date) =>
+  LeaveRequest.exists({
+    employee: employeeId,
+    status: "approved",
+    workingDates: date,
+  });
+
 export async function checkIn(user, location) {
   const employeeId = requireEmployee(user);
   const settings = await loadSettings();
@@ -48,6 +56,8 @@ export async function checkIn(user, location) {
   const { date, minutes } = localParts(now);
   const info = await dayInfo(date, settings);
   if (!info.working) throw badRequest(`Cannot check in: ${info.reason}`);
+  if (await onApprovedLeave(employeeId, date))
+    throw badRequest("Cannot check in: you are on approved leave today");
 
   const lateAfter = hhmmToMinutes(settings.officeStart) + settings.graceMinutes;
   try {
@@ -92,10 +102,15 @@ export async function today(user) {
   const record = user.employeeId
     ? await Attendance.findOne({ employee: user.employeeId, date })
     : null;
+  const onLeave =
+    user.employeeId && info.working
+      ? Boolean(await onApprovedLeave(user.employeeId, date))
+      : false;
   return {
     date,
     ...info,
     record,
+    onLeave,
     officeStart: settings.officeStart,
     graceMinutes: settings.graceMinutes,
   };
@@ -110,15 +125,26 @@ export async function myMonth(user, month) {
     : current.slice(0, 7);
   const prefix = new RegExp(`^${m}-`);
 
-  const [employee, records, holidays] = await Promise.all([
+  const [employee, records, holidays, leaves] = await Promise.all([
     Employee.findById(employeeId),
     Attendance.find({ employee: employeeId, date: prefix }),
     holidayMap({ date: prefix }),
+    LeaveRequest.find({
+      employee: employeeId,
+      status: "approved",
+      workingDates: prefix,
+    }).populate("leaveType", "name"),
   ]);
   if (!employee) throw notFound("Employee not found");
 
+  const leaveByDate = new Map();
+  for (const lr of leaves)
+    for (const d of lr.workingDates)
+      if (d.startsWith(`${m}-`))
+        leaveByDate.set(d, lr.leaveType?.name || "Leave");
+
   const byDate = new Map(records.map((r) => [r.date, r]));
-  const summary = { present: 0, late: 0, half_day: 0, absent: 0 };
+  const summary = { present: 0, late: 0, half_day: 0, on_leave: 0, absent: 0 };
   const days = [];
 
   for (const date of monthDays(m)) {
@@ -129,13 +155,14 @@ export async function myMonth(user, month) {
     let status;
     if (record) status = record.status;
     else if (off) status = "off";
+    else if (leaveByDate.has(date)) status = "on_leave";
     else status = date === current ? "not_checked_in" : "absent";
 
     if (summary[status] !== undefined) summary[status] += 1;
     days.push({
       date,
       status,
-      note: off,
+      note: off || (status === "on_leave" ? leaveByDate.get(date) : null),
       checkIn: record?.checkIn || null,
       checkOut: record?.checkOut || null,
       workedMinutes: record?.workedMinutes || 0,
@@ -153,18 +180,26 @@ export async function board(dateInput) {
   if (date > current) throw badRequest("Date is in the future");
 
   const info = await dayInfo(date, settings);
-  const [employees, records] = await Promise.all([
+  const [employees, records, leaves] = await Promise.all([
     Employee.find({ isActive: true, joiningDate: { $lte: date } })
       .populate("department", "name")
       .sort({ name: 1 }),
     Attendance.find({ date }),
+    LeaveRequest.find({ status: "approved", workingDates: date }).populate(
+      "leaveType",
+      "name",
+    ),
   ]);
   const byEmployee = new Map(records.map((r) => [String(r.employee), r]));
+  const leaveByEmployee = new Map(
+    leaves.map((l) => [String(l.employee), l.leaveType?.name || "Leave"]),
+  );
 
   const summary = {
     present: 0,
     late: 0,
     half_day: 0,
+    on_leave: 0,
     absent: 0,
     not_checked_in: 0,
   };
@@ -173,6 +208,7 @@ export async function board(dateInput) {
     let status;
     if (record) status = record.status;
     else if (!info.working) status = "off";
+    else if (leaveByEmployee.has(String(e._id))) status = "on_leave";
     else status = date === current ? "not_checked_in" : "absent";
 
     if (summary[status] !== undefined) summary[status] += 1;
@@ -184,6 +220,8 @@ export async function board(dateInput) {
         department: e.department?.name || null,
       },
       status,
+      leaveType:
+        status === "on_leave" ? leaveByEmployee.get(String(e._id)) : null,
       checkIn: record?.checkIn || null,
       checkOut: record?.checkOut || null,
       workedMinutes: record?.workedMinutes || 0,
