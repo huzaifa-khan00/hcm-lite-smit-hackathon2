@@ -1,0 +1,49 @@
+import { Correction } from "./correction.model.js";
+import { Attendance } from "./attendance.model.js";
+import { Settings } from "../org/settings/settings.model.js";
+import { Holiday } from "../org/holidays/holidays.model.js";
+import { Employee } from "../employees/employees.model.js";
+import * as audit from "../audit/audit.service.js";
+import { badRequest, forbidden, notFound } from "../../utils/httpError.js";
+import {
+  localParts,
+  todayStr,
+  hhmmToMinutes,
+  weekdayOf,
+} from "../../utils/time.js";
+
+const MAX_AGE_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const OBJECT_ID = /^[a-f\d]{24}$/i;
+
+const utcMidnight = (date) => Date.parse(`${date}T00:00:00Z`);
+
+async function loadSettings() {
+  const settings = await Settings.findOne();
+  if (!settings) throw notFound("Company is not set up yet");
+  return settings;
+}
+
+function requireEmployee(user) {
+  if (!user.employeeId)
+    throw forbidden("Only employees can request corrections");
+  return user.employeeId;
+}
+
+// Turns a local date ("2026-10-25") and time ("09:30") into a real Date,
+// using whatever time zone localParts() uses.
+function atLocalTime(date, hhmm) {
+  const target = hhmmToMinutes(hhmm);
+  let guess = utcMidnight(date) + target * 60000;
+  for (let i = 0; i < 2; i++) {
+    const shown = localParts(new Date(guess));
+    const offset =
+      (utcMidnight(shown.date) - utcMidnight(date)) / 60000 +
+      shown.minutes -
+      target;
+    guess -= offset * 60000;
+  }
+  return new Date(guess);
+}
+
+// Requested times win; anything not sent is kept from the
