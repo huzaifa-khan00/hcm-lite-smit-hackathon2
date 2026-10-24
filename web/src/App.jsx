@@ -1,3 +1,13 @@
+import { BrowserRouter } from "react-router-dom";
+import { AuthProvider } from "./auth/AuthContext.jsx";
+import AppRoutes from "./routes.jsx";
+
 export default function App() {
-  return <h1 className="p-6 text-2xl font-bold">HCM Lite is running</h1>;
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
