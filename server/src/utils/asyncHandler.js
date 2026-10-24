@@ -1,1 +1,2 @@
-// server/src/utils/asyncHandler.js — TODO
+export const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
