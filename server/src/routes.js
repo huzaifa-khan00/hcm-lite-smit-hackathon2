@@ -8,6 +8,7 @@ import designationRoutes from "./modules/org/designations/designations.routes.js
 import leaveTypeRoutes from "./modules/org/leaveTypes/leaveTypes.routes.js";
 import holidayRoutes from "./modules/org/holidays/holidays.routes.js";
 import employeeRoutes from "./modules/employees/employees.routes.js";
+import attendanceRoutes from "./modules/attendance/attendance.routes.js";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/designations", designationRoutes);
 router.use("/leave-types", leaveTypeRoutes);
 router.use("/holidays", holidayRoutes);
 router.use("/employees", employeeRoutes);
+router.use("/attendance", attendanceRoutes);
 
 export default router;
