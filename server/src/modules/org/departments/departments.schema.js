@@ -1,1 +1,5 @@
-// server/src/modules/org/departments/departments.schema.js — TODO
+import { z } from 'zod';
+
+export const departmentSchema = z.object({
+  name: z.string().trim().min(2, 'Department name is required'),
+});
