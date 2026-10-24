@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import AppLayout from "./layouts/AppLayout.jsx";
+import ComingSoon from "./components/ComingSoon.jsx";
 import Setup from "./pages/shared/Setup.jsx";
 import Login from "./pages/shared/Login.jsx";
 import ChangePassword from "./pages/shared/ChangePassword.jsx";
@@ -11,10 +13,33 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/setup" element={<Setup />} />
       <Route path="/login" element={<Login />} />
+
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Dashboard />} />
+        </Route>
       </Route>
+
+      <Route element={<ProtectedRoute roles={["admin"]} />}>
+        <Route element={<AppLayout />}>
+          <Route
+            path="/admin/settings"
+            element={<ComingSoon title="Company Settings" />}
+          />
+          <Route path="/admin/org" element={<ComingSoon title="Org Setup" />} />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute roles={["admin", "hr"]} />}>
+        <Route element={<AppLayout />}>
+          <Route
+            path="/hr/employees"
+            element={<ComingSoon title="Employees" />}
+          />
+        </Route>
+      </Route>
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
