@@ -6,13 +6,9 @@ AI-assisted Human Capital Management (Admin / HR / Employee).
 Node + Express + MongoDB · React + Vite + Tailwind · JWT · LLM tool calling
 
 ## Run
-_TODO_
 
-## Create the first Admin
-_TODO_
-
-## Set the AI key
-_TODO_
-
-## Done / not done
-_TODO_
+1. Clone the repository and navigate to the project directory.
+2. Install dependencies for both the backend and the frontend (`web` directory):
+   ```bash
+   npm install
+   cd web && npm install && cd ..
