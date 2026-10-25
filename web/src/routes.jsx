@@ -1,7 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
-import ComingSoon from "./components/ComingSoon.jsx";
 import Setup from "./pages/shared/Setup.jsx";
 import Login from "./pages/shared/Login.jsx";
 import ChangePassword from "./pages/shared/ChangePassword.jsx";
@@ -22,6 +21,8 @@ import ApplyLeave from "./pages/employee/ApplyLeave.jsx";
 import PayrollDraft from "./pages/hr/PayrollDraft.jsx";
 import PayrollFinalize from "./pages/admin/PayrollFinalize.jsx";
 import MyPayslips from "./pages/employee/MyPayslips.jsx";
+import Announcements from "./pages/shared/Announcements.jsx";
+import AuditLogs from "./pages/admin/AuditLogs.jsx";
 
 export default function AppRoutes() {
   return (
@@ -40,6 +41,7 @@ export default function AppRoutes() {
           <Route path="/my/leave" element={<MyLeave />} />
           <Route path="/my/leave/apply" element={<ApplyLeave />} />
           <Route path="/employee/payslips" element={<MyPayslips />} />
+          <Route path="/announcements" element={<Announcements />} />
         </Route>
       </Route>
 
@@ -62,6 +64,7 @@ export default function AppRoutes() {
           <Route path="/admin/settings" element={<CompanySettings />} />
           <Route path="/admin/org" element={<OrgSetup />} />
           <Route path="/admin/payroll/finalize" element={<PayrollFinalize />} />
+          <Route path="/admin/audit-logs" element={<AuditLogs />} />
         </Route>
       </Route>
 
