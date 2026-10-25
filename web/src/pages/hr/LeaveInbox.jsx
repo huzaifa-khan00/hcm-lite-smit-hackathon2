@@ -1,280 +1,184 @@
-import { useEffect, useState } from "react";
-import Modal from "../../components/Modal.jsx";
-import DataTable from "../../components/DataTable.jsx";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "../../components/Toast.jsx";
-import { useAuth } from "../../auth/useAuth.js";
 import { errorMessage } from "../../api/client.js";
 import { listLeaves, decideLeave } from "../../api/leave.js";
-
-const TABS = ["pending", "approved", "rejected", "cancelled"];
-const BADGE = {
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-600",
-};
-
-const range = (r) =>
-  r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`;
+import Modal from "../../components/Modal.jsx";
+import FormField, {
+  inputClass,
+  buttonClass,
+} from "../../components/FormField.jsx";
 
 export default function LeaveInbox() {
   const toast = useToast();
-  const { user } = useAuth();
-  const [status, setStatus] = useState("pending");
-  const [page, setPage] = useState(1);
-  const [data, setData] = useState({ items: [], total: 0, limit: 20 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [reload, setReload] = useState(0);
+  const [leaves, setLeaves] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("pending");
 
-  const [active, setActive] = useState(null); // { item, decision }
+  // Decision Modal
+  const [selected, setSelected] = useState(null);
+  const [decision, setDecision] = useState("");
   const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await listLeaves({ status: statusFilter });
+      setLeaves(res.items || res || []);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError("");
-    listLeaves({ status, page })
-      .then((d) => !cancelled && setData(d))
-      .catch((err) => !cancelled && setError(errorMessage(err)))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [status, page, reload]);
+    load();
+  }, [load]);
 
-  const pages = Math.max(Math.ceil(data.total / data.limit), 1);
-
-  // HR decides employee requests; Admin decides requests made by HR.
-  const canDecide = (r) =>
-    r.status === "pending" &&
-    ((user.role === "hr" && r.requesterRole !== "hr") ||
-      (user.role === "admin" && r.requesterRole === "hr"));
-
-  const changeTab = (t) => {
-    setStatus(t);
-    setPage(1);
-  };
-
-  const open = (item, decision) => {
-    setActive({ item, decision });
-    setNote("");
-  };
-
-  const close = () => {
-    if (!saving) setActive(null);
-  };
-
-  const submit = async () => {
-    const trimmed = note.trim();
-    if (active.decision === "rejected" && trimmed.length < 3) {
-      toast.error("Add a comment (at least 3 characters) when rejecting");
-      return;
-    }
-    setSaving(true);
+  const handleDecision = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
     try {
-      await decideLeave(active.item._id, {
-        decision: active.decision,
-        ...(trimmed && { note: trimmed }),
-      });
-      toast.success(
-        active.decision === "approved" ? "Leave approved" : "Leave rejected",
-      );
-      setActive(null);
-      setReload((n) => n + 1);
+      await decideLeave(selected._id, { decision, note });
+      toast.success(`Leave request ${decision}`);
+      setSelected(null);
+      setNote("");
+      load();
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
-  const columns = [
-    {
-      key: "employee",
-      label: "Employee",
-      render: (r) => (
-        <div>
-          <div className="font-medium">{r.employee?.name || "—"}</div>
-          <div className="text-xs text-gray-500">{r.employee?.employeeCode}</div>
-        </div>
-      ),
-    },
-    { key: "type", label: "Type", render: (r) => r.leaveType?.name || "—" },
-    { key: "dates", label: "Dates", render: range },
-    { key: "days", label: "Days" },
-    { key: "reason", label: "Reason", className: "max-w-xs" },
-    {
-      key: "status",
-      label: "Status",
-      render: (r) => (
-        <div>
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${BADGE[r.status]}`}
-          >
-            {r.status}
-          </span>
-          {r.decisionNote && (
-            <div className="mt-1 text-xs text-gray-500">{r.decisionNote}</div>
-          )}
-          {r.decidedBy?.name && (
-            <div className="text-xs text-gray-400">by {r.decidedBy.name}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "actions",
-      label: "",
-      render: (r) =>
-        canDecide(r) ? (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => open(r, "approved")}
-              className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700"
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              onClick={() => open(r, "rejected")}
-              className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
-            >
-              Reject
-            </button>
-          </div>
-        ) : (
-          r.status === "pending" && (
-            <span className="text-xs text-gray-400">
-              {r.requesterRole === "hr" ? "Admin decides" : "HR decides"}
-            </span>
-          )
-        ),
-    },
-  ];
+  if (loading) return <p className="text-sm text-gray-500">Loading…</p>;
+  if (error)
+    return <div className="rounded bg-red-50 p-3 text-red-700">{error}</div>;
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Leave requests</h1>
-
-      <div className="flex gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => changeTab(t)}
-            className={`rounded px-3 py-1.5 text-sm capitalize ${
-              status === t
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {error && (
-        <div className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</div>
-      )}
-
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading…</p>
-      ) : (
-        <DataTable
-          columns={columns}
-          rows={data.items}
-          empty={`No ${status} requests`}
-        />
-      )}
-
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <span>
-          {data.total} request{data.total === 1 ? "" : "s"}
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="rounded border px-3 py-1 disabled:opacity-40"
-          >
-            Prev
-          </button>
-          <span>
-            Page {page} of {pages}
-          </span>
-          <button
-            type="button"
-            disabled={page >= pages}
-            onClick={() => setPage((p) => p + 1)}
-            className="rounded border px-3 py-1 disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-
-      {active && (
-        <Modal
-          title={active.decision === "approved" ? "Approve leave" : "Reject leave"}
-          onClose={close}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Leave Inbox</h1>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded border border-gray-300 px-3 py-1.5 text-sm"
         >
-          <div className="space-y-3 text-sm">
-            <div className="rounded bg-gray-50 p-3">
-              <div className="font-medium">
-                {active.item.employee?.name} · {active.item.leaveType?.name}
-              </div>
-              <div>
-                {range(active.item)} ({active.item.days} working day
-                {active.item.days === 1 ? "" : "s"})
-              </div>
-              <div className="mt-1 text-gray-600">{active.item.reason}</div>
-            </div>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
 
-            <label className="block">
-              <span className="mb-1 block font-medium">
-                Comment{" "}
-                {active.decision === "rejected" ? "(required)" : "(optional)"}
-              </span>
+      <div className="overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 text-xs uppercase text-gray-700">
+            <tr>
+              <th className="px-4 py-3">Employee</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Dates</th>
+              <th className="px-4 py-3">Reason</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {leaves.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-6 text-center text-gray-400">
+                  No requests found.
+                </td>
+              </tr>
+            ) : (
+              leaves.map((l) => (
+                <tr key={l._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">
+                    {l.employee?.name}{" "}
+                    <span className="text-xs text-gray-400">
+                      ({l.employee?.employeeCode})
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {l.leaveType?.name || "Leave"}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {l.startDate} to {l.endDate}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
+                    {l.reason}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-block rounded px-2 py-0.5 text-xs font-semibold uppercase ${
+                        l.status === "approved"
+                          ? "bg-green-100 text-green-800"
+                          : l.status === "rejected"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {l.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-2">
+                    {l.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setSelected(l);
+                            setDecision("approved");
+                          }}
+                          className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelected(l);
+                            setDecision("rejected");
+                          }}
+                          className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {selected && (
+        <Modal
+          title={`${decision === "approved" ? "Approve" : "Reject"} Leave Request`}
+          onClose={() => setSelected(null)}
+        >
+          <form onSubmit={handleDecision}>
+            <p className="text-sm text-gray-600 mb-4">
+              Reviewing request from{" "}
+              <span className="font-semibold">{selected.employee?.name}</span> (
+              {selected.startDate} to {selected.endDate}).
+            </p>
+            <FormField label="Decision Note (Optional)">
               <textarea
+                rows={3}
+                className={inputClass}
+                placeholder="Add note..."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                maxLength={500}
-                className="w-full rounded border border-gray-300 p-2"
               />
-            </label>
-
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={close}
-                disabled={saving}
-                className="rounded border px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={saving}
-                className={`rounded px-4 py-2 text-white disabled:opacity-60 ${
-                  active.decision === "approved"
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-red-600 hover:bg-red-700"
-                }`}
-              >
-                {saving
-                  ? "Saving…"
-                  : active.decision === "approved"
-                    ? "Approve"
-                    : "Reject"}
-              </button>
-            </div>
-          </div>
+            </FormField>
+            <button className={buttonClass} disabled={submitting}>
+              {submitting ? "Processing..." : `Confirm ${decision}`}
+            </button>
+          </form>
         </Modal>
       )}
     </div>

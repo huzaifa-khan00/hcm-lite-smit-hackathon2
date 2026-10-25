@@ -1,162 +1,246 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import DataTable from "../../components/DataTable.jsx";
 import { useToast } from "../../components/Toast.jsx";
 import { errorMessage } from "../../api/client.js";
-import { getBalance, myLeaves, cancelLeave } from "../../api/leave.js";
-
-const BADGE = {
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-600",
-};
-
-const range = (r) =>
-  r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`;
+import { leaveTypes } from "../../api/org.js";
+import {
+  myLeaves,
+  getBalance,
+  applyLeave,
+  cancelLeave,
+} from "../../api/leave.js";
+import Modal from "../../components/Modal.jsx";
+import FormField, {
+  inputClass,
+  buttonClass,
+} from "../../components/FormField.jsx";
 
 export default function MyLeave() {
   const toast = useToast();
-  const [balance, setBalance] = useState(null);
-  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [busyId, setBusyId] = useState("");
+  const [leaves, setLeaves] = useState([]);
+  const [balances, setBalances] = useState([]);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+
+  // Modal & Form state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    leaveType: "",
+    startDate: "",
+    endDate: "",
+    reason: "",
+  });
+
+  const currentYear = new Date().getFullYear().toString();
 
   const load = useCallback(async () => {
     try {
+      setLoading(true);
       setError("");
-      const [b, l] = await Promise.all([getBalance(), myLeaves({ limit: 50 })]);
-      setBalance(b);
-      setItems(l.items);
+      const [leaveRes, balanceRes, typesRes] = await Promise.all([
+        myLeaves(),
+        getBalance(currentYear).catch(() => []),
+        leaveTypes.list().catch(() => []), // Updated to use leaveTypes.list()
+      ]);
+      setLeaves(leaveRes.items || leaveRes || []);
+      setBalances(balanceRes.items || balanceRes || []);
+      setLeaveTypes(typesRes.items || typesRes || []);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentYear]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const onCancel = async (r) => {
-    if (!window.confirm(`Cancel your leave (${range(r)})?`)) return;
-    setBusyId(r._id);
+  const handleApply = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
     try {
-      await cancelLeave(r._id);
-      toast.success("Leave cancelled");
-      await load();
+      await applyLeave(form);
+      toast.success("Leave request submitted");
+      setModalOpen(false);
+      setForm({ leaveType: "", startDate: "", endDate: "", reason: "" });
+      load();
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
-      setBusyId("");
+      setSubmitting(false);
     }
   };
 
-  const columns = [
-    { key: "type", label: "Type", render: (r) => r.leaveType?.name || "—" },
-    { key: "dates", label: "Dates", render: range },
-    { key: "days", label: "Working days" },
-    { key: "reason", label: "Reason", className: "max-w-xs" },
-    {
-      key: "status",
-      label: "Status",
-      render: (r) => (
-        <div>
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${BADGE[r.status]}`}
-          >
-            {r.status}
-          </span>
-          {r.decisionNote && (
-            <div className="mt-1 text-xs text-gray-500">{r.decisionNote}</div>
-          )}
-          {r.decidedBy?.name && (
-            <div className="text-xs text-gray-400">by {r.decidedBy.name}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "actions",
-      label: "",
-      render: (r) =>
-        (r.status === "pending" || r.status === "approved") && (
-          <button
-            type="button"
-            disabled={busyId === r._id}
-            onClick={() => onCancel(r)}
-            className="text-xs text-red-600 hover:underline disabled:opacity-50"
-          >
-            Cancel
-          </button>
-        ),
-    },
-  ];
+  const handleCancel = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this leave request?"))
+      return;
+    try {
+      await cancelLeave(id);
+      toast.success("Leave request cancelled");
+      load();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
+  if (loading) return <p className="text-sm text-gray-500">Loading…</p>;
+  if (error)
+    return <div className="rounded bg-red-50 p-3 text-red-700">{error}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">My leave</h1>
-        <Link
-          to="/my/leave/apply"
+        <h1 className="text-xl font-semibold">My Leaves</h1>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
           className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
         >
-          Apply for leave
-        </Link>
+          Apply for Leave
+        </button>
       </div>
 
-      {error && (
-        <div className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</div>
-      )}
-
-      {balance && (
-        <div>
-          <h2 className="mb-2 text-sm font-medium text-gray-600">
-            Balance for {balance.year}
-          </h2>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {balance.balances.map((b) => (
-              <div
-                key={b.leaveType._id}
-                className="rounded border border-gray-200 bg-white p-4"
-              >
-                <div className="text-xs text-gray-500">{b.leaveType.name}</div>
-                {b.remaining === null ? (
-                  <div className="text-2xl font-semibold">Unlimited</div>
-                ) : (
-                  <div className="text-2xl font-semibold">
-                    {b.remaining}
-                    <span className="text-sm font-normal text-gray-500">
-                      {" "}
-                      / {b.quota}
-                    </span>
-                  </div>
-                )}
-                <div className="mt-1 text-xs text-gray-500">
-                  {b.used} used
-                  {b.pending > 0 && ` · ${b.pending} pending`}
-                </div>
-              </div>
-            ))}
+      {/* Balances Section */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {balances.map((b) => (
+          <div
+            key={b._id || b.leaveType}
+            className="rounded border bg-white p-4 shadow-sm"
+          >
+            <div className="text-sm text-gray-500">
+              {b.leaveTypeName || "Leave Type"}
+            </div>
+            <div className="mt-1 text-2xl font-bold">
+              {b.remaining ?? b.allowed - b.used}{" "}
+              <span className="text-xs font-normal text-gray-400">
+                / {b.allowed} days
+              </span>
+            </div>
           </div>
-          {balance.balances.length === 0 && (
-            <p className="text-sm text-gray-500">
-              No leave types have been set up yet. Ask Admin to add them.
-            </p>
-          )}
-        </div>
-      )}
-
-      <div>
-        <h2 className="mb-2 font-medium">History</h2>
-        {loading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
-        ) : (
-          <DataTable columns={columns} rows={items} empty="No leave requests yet" />
-        )}
+        ))}
       </div>
+
+      {/* Leaves Table */}
+      <div className="overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 text-xs uppercase text-gray-700">
+            <tr>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Dates</th>
+              <th className="px-4 py-3">Reason</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {leaves.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-gray-400">
+                  No leave requests found.
+                </td>
+              </tr>
+            ) : (
+              leaves.map((l) => (
+                <tr key={l._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">
+                    {l.leaveType?.name || "Leave"}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {l.startDate} to {l.endDate}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
+                    {l.reason}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-block rounded px-2 py-0.5 text-xs font-semibold uppercase ${
+                        l.status === "approved"
+                          ? "bg-green-100 text-green-800"
+                          : l.status === "rejected"
+                            ? "bg-red-100 text-red-800"
+                            : l.status === "cancelled"
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {l.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {l.status === "pending" && (
+                      <button
+                        onClick={() => handleCancel(l._id)}
+                        className="text-red-600 hover:underline text-xs font-medium"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {modalOpen && (
+        <Modal title="Apply for Leave" onClose={() => setModalOpen(false)}>
+          <form onSubmit={handleApply}>
+            <FormField label="Leave Type">
+              <select
+                required
+                className={inputClass}
+                value={form.leaveType}
+                onChange={(e) =>
+                  setForm({ ...form, leaveType: e.target.value })
+                }
+              >
+                <option value="">Select type...</option>
+                {leaveTypes.map((t) => (
+                  <option key={t._id} value={t._id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Start Date">
+              <input
+                type="date"
+                required
+                className={inputClass}
+                value={form.startDate}
+                onChange={(e) =>
+                  setForm({ ...form, startDate: e.target.value })
+                }
+              />
+            </FormField>
+            <FormField label="End Date">
+              <input
+                type="date"
+                required
+                className={inputClass}
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Reason">
+              <textarea
+                required
+                rows={3}
+                className={inputClass}
+                placeholder="Reason for leave..."
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              />
+            </FormField>
+            <button className={buttonClass} disabled={submitting}>
+              {submitting ? "Submitting..." : "Submit Request"}
+            </button>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

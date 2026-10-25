@@ -1,11 +1,4 @@
 const dashboard = { label: "Dashboard", to: "/" };
-const checkIn = { label: "Check-in", to: "/check-in" };
-const myAttendance = { label: "My Attendance", to: "/my/attendance" };
-const myCorrections = { label: "My Corrections", to: "/my/corrections" };
-const myLeave = { label: "My Leave", to: "/my/leave" };
-const board = { label: "Attendance Board", to: "/hr/attendance" };
-const corrections = { label: "Corrections", to: "/hr/corrections" };
-const leaveInbox = { label: "Leave Requests", to: "/hr/leave" };
 
 const menus = {
   admin: [
@@ -13,22 +6,28 @@ const menus = {
     { label: "Company Settings", to: "/admin/settings" },
     { label: "Org Setup", to: "/admin/org" },
     { label: "Employees", to: "/hr/employees" },
-    board,
-    corrections,
-    leaveInbox,
+    { label: "Attendance Board", to: "/hr/attendance" },
+    { label: "Corrections", to: "/hr/corrections" },
+    { label: "Leave Inbox", to: "/hr/leave" },
+    { label: "Payroll Draft", to: "/hr/payroll/draft" }, // <-- Added here
+    { label: "Payroll Finalize", to: "/admin/payroll/finalize" }, // <-- Added here
   ],
   hr: [
     dashboard,
-    checkIn,
-    myAttendance,
-    myCorrections,
-    myLeave,
     { label: "Employees", to: "/hr/employees" },
-    board,
-    corrections,
-    leaveInbox,
+    { label: "Attendance Board", to: "/hr/attendance" },
+    { label: "Corrections", to: "/hr/corrections" },
+    { label: "Leave Inbox", to: "/hr/leave" },
+    { label: "Payroll Draft", to: "/hr/payroll/draft" }, // <-- Added here
   ],
-  employee: [dashboard, checkIn, myAttendance, myCorrections, myLeave],
+  employee: [
+    dashboard,
+    { label: "Check In", to: "/check-in" },
+    { label: "My Attendance", to: "/my/attendance" },
+    { label: "My Corrections", to: "/my/corrections" },
+    { label: "My Leave", to: "/my/leave" },
+    { label: "My Payslips", to: "/employee/payslips" }, // <-- Added here
+  ],
 };
 
 export const menuFor = (role) => menus[role] || [dashboard];

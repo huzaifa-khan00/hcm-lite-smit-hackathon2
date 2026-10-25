@@ -19,6 +19,9 @@ import MyAttendance from "./pages/employee/MyAttendance.jsx";
 import MyCorrections from "./pages/employee/MyCorrections.jsx";
 import MyLeave from "./pages/employee/MyLeave.jsx";
 import ApplyLeave from "./pages/employee/ApplyLeave.jsx";
+import PayrollDraft from "./pages/hr/PayrollDraft.jsx";
+import PayrollFinalize from "./pages/admin/PayrollFinalize.jsx";
+import MyPayslips from "./pages/employee/MyPayslips.jsx";
 
 export default function AppRoutes() {
   return (
@@ -26,6 +29,7 @@ export default function AppRoutes() {
       <Route path="/setup" element={<Setup />} />
       <Route path="/login" element={<Login />} />
 
+      {/* General Authenticated Routes (Employees, HR, and Admins) */}
       <Route element={<ProtectedRoute />}>
         <Route path="/change-password" element={<ChangePassword />} />
         <Route element={<AppLayout />}>
@@ -35,16 +39,11 @@ export default function AppRoutes() {
           <Route path="/my/corrections" element={<MyCorrections />} />
           <Route path="/my/leave" element={<MyLeave />} />
           <Route path="/my/leave/apply" element={<ApplyLeave />} />
+          <Route path="/employee/payslips" element={<MyPayslips />} />
         </Route>
       </Route>
 
-      <Route element={<ProtectedRoute roles={["admin"]} />}>
-        <Route element={<AppLayout />}>
-          <Route path="/admin/settings" element={<CompanySettings />} />
-          <Route path="/admin/org" element={<OrgSetup />} />
-        </Route>
-      </Route>
-
+      {/* HR & Admin Shared Routes */}
       <Route element={<ProtectedRoute roles={["admin", "hr"]} />}>
         <Route element={<AppLayout />}>
           <Route path="/hr/employees" element={<Employees />} />
@@ -53,6 +52,16 @@ export default function AppRoutes() {
           <Route path="/hr/attendance" element={<AttendanceBoard />} />
           <Route path="/hr/corrections" element={<Corrections />} />
           <Route path="/hr/leave" element={<LeaveInbox />} />
+          <Route path="/hr/payroll/draft" element={<PayrollDraft />} />
+        </Route>
+      </Route>
+
+      {/* Admin Only Routes */}
+      <Route element={<ProtectedRoute roles={["admin"]} />}>
+        <Route element={<AppLayout />}>
+          <Route path="/admin/settings" element={<CompanySettings />} />
+          <Route path="/admin/org" element={<OrgSetup />} />
+          <Route path="/admin/payroll/finalize" element={<PayrollFinalize />} />
         </Route>
       </Route>
 
